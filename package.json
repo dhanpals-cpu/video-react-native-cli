@@ -1,5 +1,5 @@
 {
-  "name": "VideoPOC",
+  "name": "video-poc",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -10,8 +10,14 @@
     "test": "jest"
   },
   "dependencies": {
+    "@react-native-async-storage/async-storage": "^2.2.0",
     "react": "18.3.1",
-    "react-native": "0.76.1"
+    "react-native": "0.76.1",
+    "react-native-document-picker": "^9.3.1",
+    "react-native-fs": "^2.20.0",
+    "react-native-image-picker": "^8.2.1",
+    "react-native-video": "^6.19.0",
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
