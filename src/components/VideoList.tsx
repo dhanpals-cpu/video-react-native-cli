@@ -70,6 +70,42 @@ const VideoList = () => {
                                     {/* {new Date(item.createdAt).toLocaleDateString()} */}
                                 </Text>
                             </View>
+
+                            {/* Upload Status Indicator */}
+                            {item.uploadStatus && (
+                                <View style={styles.uploadStatusContainer}>
+                                    {item.uploadStatus === 'uploading' && (
+                                        <>
+                                            <View style={styles.progressBarContainer}>
+                                                <View
+                                                    style={[
+                                                        styles.progressBar,
+                                                        { width: `${item.uploadProgress || 0}%` }
+                                                    ]}
+                                                />
+                                            </View>
+                                            <Text style={styles.uploadStatusText}>
+                                                Uploading {item.uploadProgress || 0}%
+                                            </Text>
+                                        </>
+                                    )}
+                                    {item.uploadStatus === 'completed' && (
+                                        <Text style={[styles.uploadStatusText, styles.uploadSuccess]}>
+                                            ✓ Uploaded
+                                        </Text>
+                                    )}
+                                    {item.uploadStatus === 'failed' && (
+                                        <Text style={[styles.uploadStatusText, styles.uploadError]}>
+                                            ✗ Upload failed{item.uploadError ? `: ${item.uploadError}` : ''}
+                                        </Text>
+                                    )}
+                                    {item.uploadStatus === 'pending' && (
+                                        <Text style={[styles.uploadStatusText, styles.uploadPending]}>
+                                            ⏳ Pending upload
+                                        </Text>
+                                    )}
+                                </View>
+                            )}
                         </View>
 
                         <View style={styles.actions}>
@@ -211,6 +247,35 @@ const styles = StyleSheet.create({
         color: '#4B7BEC',
         fontSize: 12,
         fontWeight: 'bold',
+    },
+    uploadStatusContainer: {
+        marginTop: 8,
+    },
+    progressBarContainer: {
+        height: 4,
+        backgroundColor: '#E8EEF7',
+        borderRadius: 2,
+        overflow: 'hidden',
+        marginBottom: 4,
+    },
+    progressBar: {
+        height: '100%',
+        backgroundColor: '#4B7BEC',
+        borderRadius: 2,
+    },
+    uploadStatusText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: '#666',
+    },
+    uploadSuccess: {
+        color: '#10B981',
+    },
+    uploadError: {
+        color: '#EF4444',
+    },
+    uploadPending: {
+        color: '#F59E0B',
     },
 });
 

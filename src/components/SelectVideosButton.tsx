@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, Platform } from 'react-native';
 import DocumentPicker from 'react-native-document-picker';
-import { launchImageLibrary } from 'react-native-image-picker';
 import { useVideoStore } from '../store/useVideoStore';
 import { copyVideoToStorage, validateVideoSize } from '../utils/fileSystem';
 
@@ -16,53 +15,42 @@ const SelectVideosButton = () => {
             setPreparing(true);
             setError(null);
 
-            // Artificial delay to ensure UI updates
-            await new Promise(resolve => setTimeout(resolve, 100));
+            /**
+             * CRITICAL FIX #4: Removed artificial delay
+             * Artificial delays slow down processing and are unnecessary
+             */
 
-            let assets: any[] = [];
-
-            if (Platform.OS === 'ios') {
-                // iOS: Use ImagePicker to access Photos/Gallery
-                const result = await launchImageLibrary({
-                    mediaType: 'video',
-                    selectionLimit: 0,
-                    includeExtra: false, // Optimized
-                    assetRepresentationMode: 'current',
+            /**
+             * MEMORY-SAFE VIDEO SELECTION
+             * 
+             * Using react-native-document-picker for BOTH iOS and Android ensures:
+             * 1. Files are NOT loaded into JavaScript memory
+             * 2. Only file URIs are returned (file paths)
+             * 3. Supports all video formats natively supported by the device
+             * 4. Consistent behavior across platforms
+             * 
+             * CRITICAL FIX #1: Removed 'copyTo' option
+             * The copyTo option causes duplicate file copying and severe performance issues.
+             * We handle file copying manually in copyVideoToStorage() for better control.
+             */
+            let results;
+            try {
+                results = await DocumentPicker.pick({
+                    type: [DocumentPicker.types.video],
+                    allowMultiSelection: true,
+                    presentationStyle: 'fullScreen',
                 });
-
-                if (result.didCancel) {
+            } catch (e: any) {
+                if (DocumentPicker.isCancel(e)) {
                     setPreparing(false);
                     return;
                 }
-                if (result.errorCode) {
-                    throw new Error(result.errorMessage);
-                }
-                assets = result.assets || [];
-
-            } else {
-                // Android: Use DocumentPicker for performance
-                try {
-                    const results = await DocumentPicker.pick({
-                        type: [DocumentPicker.types.video],
-                        allowMultiSelection: true,
-                        copyTo: 'cachesDirectory',
-                    });
-                    assets = results;
-                } catch (e: any) {
-                    if (DocumentPicker.isCancel(e)) {
-                        setPreparing(false);
-                        return;
-                    }
-                    throw e;
-                }
+                throw e;
             }
 
-            // 1. Initial count check
-            if (assets.length < 5) {
-                setPreparing(false);
-                Alert.alert('Validation Error', `You must select at least 5 videos. You selected ${assets.length}.`);
-                return;
-            }
+            const assets = results;
+
+            // No minimum count validation - user can select any number of videos
 
             setProcessing(true);
             setPreparing(false);
@@ -74,10 +62,20 @@ const SelectVideosButton = () => {
 
             for (const asset of assets) {
                 if (!asset.uri) continue;
-                // Normalize size property check
-                const size = (Platform.OS === 'ios' ? asset.fileSize : asset.size) || 0;
-                // Normalize name property check
-                const name = (Platform.OS === 'ios' ? asset.fileName : asset.name) || 'Video';
+
+                /**
+                 * CRITICAL FIX #2: Use asset.uri only
+                 * 
+                 * DocumentPicker returns consistent properties across platforms:
+                 * - size: file size in bytes
+                 * - name: file name
+                 * - uri: file URI (content:// on Android, file:// on iOS)
+                 * 
+                 * We do NOT use fileCopyUri as we removed the copyTo option.
+                 */
+                const size = asset.size || 0;
+                const name = asset.name || 'Video';
+                const uri = asset.uri;
 
                 const sizeError = validateVideoSize(size);
 
@@ -86,15 +84,15 @@ const SelectVideosButton = () => {
                 } else {
                     // Standardize asset object for processing
                     validAssets.push({
-                        uri: asset.uri,
+                        uri: uri,
                         name: name,
                         size: size
                     });
                 }
             }
 
-            if (validAssets.length < 5) {
-                const errorMsg = `After filtering invalid sizes (50MB-2GB), only ${validAssets.length} valid videos remain. Minimum 5 valid videos required.\n\nErrors:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? '...' : ''}`;
+            if (validAssets.length < 1) {
+                const errorMsg = `After filtering invalid sizes (5MB-2GB), no valid videos remain.${errors.length > 0 ? '\n\nErrors:\n' + errors.slice(0, 5).join('\n') + (errors.length > 5 ? '...' : '') : ''}`;
                 Alert.alert('Validation Error', errorMsg);
                 setProcessing(false);
                 return;
@@ -118,8 +116,10 @@ const SelectVideosButton = () => {
                     await addVideos([meta]);
                     successCount++;
 
-                    // Small artificial delay for visual transition
-                    await new Promise(resolve => setTimeout(resolve, 300));
+                    /**
+                     * CRITICAL FIX #4: Removed artificial delay
+                     * No delay needed - sequential processing is already optimized
+                     */
 
                 } catch (e: any) {
                     console.error(`Failed to copy ${asset.name}`, e);

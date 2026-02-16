@@ -7,6 +7,10 @@ export interface VideoMetadata {
   size: number; // in bytes
   path: string;
   createdAt: number;
+  // Upload status tracking
+  uploadStatus?: 'pending' | 'uploading' | 'completed' | 'failed';
+  uploadProgress?: number; // 0-100
+  uploadError?: string;
 }
 
 interface VideoStore {
@@ -20,6 +24,7 @@ interface VideoStore {
   deleteVideo: (id: string) => Promise<void>;
   setSelectedVideo: (video: VideoMetadata | null) => void;
   setError: (error: string | null) => void;
+  updateUploadStatus: (id: string, status: VideoMetadata['uploadStatus'], progress?: number, error?: string) => Promise<void>;
 }
 
 const STORAGE_KEY = '@start_poc_videos';
@@ -110,4 +115,25 @@ export const useVideoStore = create<VideoStore>((set, get) => ({
 
   setSelectedVideo: (video) => set({ selectedVideo: video }),
   setError: (error) => set({ error }),
+
+  updateUploadStatus: async (id, status, progress, error) => {
+    try {
+      const currentVideos = get().videos;
+      const updatedVideos = currentVideos.map(v =>
+        v.id === id
+          ? {
+            ...v,
+            uploadStatus: status,
+            uploadProgress: progress,
+            uploadError: error
+          }
+          : v
+      );
+
+      set({ videos: updatedVideos });
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedVideos));
+    } catch (e) {
+      console.error('Failed to update upload status:', e);
+    }
+  },
 }));
